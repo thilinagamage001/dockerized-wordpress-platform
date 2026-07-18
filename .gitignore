@@ -1,0 +1,53 @@
+# Environment variables (secrets)
+.env
+
+# Docker files
+*.log
+docker-compose.override.yml
+
+# WordPress core (managed by Docker image)
+wp-admin/
+wp-includes/
+*.php~
+
+# WordPress uploads (large user-generated files)
+wp-content/uploads/
+
+# WordPress cache
+wp-content/cache/
+wp-content/upgrade/
+wp-content/backups/
+
+# Database files
+*.sql
+*.sql.gz
+dbdata/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node files (if using build tools for themes/plugins)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build files
+dist/
+build/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Composer dependencies (if used in plugins/themes)
+vendor/
+composer.lock
