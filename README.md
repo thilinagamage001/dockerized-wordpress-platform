@@ -137,7 +137,7 @@ http://localhost:8081
 ## 1. Clone Repository
 
 ```bash
-git clone https://github.com/thilinagamage001/wordpress-docker-devops.git
+https://github.com/thilinagamage001/dockerized-wordpress-platform.git
 
 cd wordpress-docker-devops
 ```
