@@ -139,7 +139,7 @@ http://localhost:8081
 ```bash
 https://github.com/thilinagamage001/dockerized-wordpress-platform.git
 
-cd wordpress-docker-devops
+cd dockerized-wordpress-platform
 ```
 
 ---
