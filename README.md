@@ -1,416 +1,138 @@
-# WordPress Docker DevOps Platform
+# Dockerized WordPress Platform
 
-A production-style containerized WordPress environment built using Docker Compose.  
-This project demonstrates how to run WordPress with a modern infrastructure approach using containers, Nginx, PHP-FPM, MySQL, and CI/CD automation.
+A production-style WordPress stack built with Docker Compose  Nginx, PHP-FPM, MySQL, and phpMyAdmin running as four containers on a single internal bridge network, with persistent storage via named volumes and bind mounts.
 
-The goal of this project is to build a reproducible WordPress development and deployment workflow following DevOps best practices.
+## Architecture
 
----
 
-## 🏗️ Architecture
+<img width="967" height="966" alt="Docker WordPress" src="https://github.com/user-attachments/assets/4697ad4e-c89b-45b2-a98d-c33a38073706" />
 
-```
-                    Users
-                      |
-                      |
-                  Nginx
-              (Reverse Proxy)
-                      |
-                      |
-              WordPress PHP-FPM
-                      |
-                      |
-                  MySQL
-               (Database)
 
-```
+Nginx serves static files directly and forwards `.php` requests to WordPress over FastCGI. WordPress and phpMyAdmin both talk to MySQL over the internal network.
 
----
+## Services
 
-## 🚀 Technologies Used
+| Service | Image | Container name | Ports | Role |
+|---|---|---|---|---|
+| Nginx | `nginx:stable-alpine` | `${CONTAINER_NAME}-nginx` | `8080:80` | Reverse proxy, serves static files, forwards PHP requests |
+| WordPress | `wordpress:7.0.1-php8.2-fpm-alpine` | `wordpress` | `9000` (internal) | PHP-FPM application server |
+| MySQL | `mysql:latest` | `${CONTAINER_NAME}-db` | `3306:3306` | Database |
+| phpMyAdmin | `phpmyadmin/phpmyadmin` | `${CONTAINER_NAME}-phpmyadmin` | `8081:80` | Database admin UI |
 
-| Technology | Purpose |
-|------------|---------|
-| Docker | Containerization |
-| Docker Compose | Multi-container orchestration |
-| Nginx | Web server / Reverse proxy |
-| WordPress | CMS Application |
-| PHP-FPM | PHP application processing |
-| MySQL | Database |
-| phpMyAdmin | Database management |
-| Git | Version control |
-| GitHub Actions | CI/CD automation |
+All services run on an internal `bridge` network and restart with `unless-stopped`.
 
----
+## Storage
 
-# 📁 Project Structure
+| Volume / mount | Purpose | Used by |
+|---|---|---|
+| `dbdata` (named) | MySQL data files (`/var/lib/mysql`) | MySQL |
+| `wordpress` (named) | WordPress core files (`/var/www/html`) | WordPress, Nginx (read-only) |
+| `./wp-content` (bind, rw) | Themes, plugins, uploads | WordPress, Nginx |
+| `./nginx` (bind, rw) | `default.conf` → `/etc/nginx/conf.d` | Nginx |
+
+Database data and WordPress core/content persist across container recreation.
+
+## Configuration
+
+- **Nginx** (`nginx/default.conf`): `try_files $uri $uri/ /index.php?$args;`, with the PHP location block proxying to `fastcgi_pass wordpress:9000` and `SCRIPT_FILENAME=$document_root$fastcgi_script_name`.
+- **WordPress**: connects to `database:3306` using environment variables. `wp-config.php` reads `*_FILE` / plain env vars via a custom `getenv_docker()` helper.
+- **phpMyAdmin**: configured with `PMA_HOST=database` and `PMA_PORT=3306`.
+- **MySQL healthcheck**: `mysqladmin ping -h localhost`, checked every 10 seconds.
+
+## Environment variables
+
+No `.env` or `.env.example` is committed to the repo  you need to create your own `.env` file (used via `env_file: .env` on every service) with:
 
 ```
-wordpress-docker-devops/
-│
-├── .github/
-│   └── workflows/
-│       └── ci.yml
-│
-├── docker-compose.yml
-├── .env.example
-│
-├── nginx/
-│   └── default.conf
-│
-├── wp-content/
-│   ├── themes/
-│   │   └── custom-theme/
-│   │
-│   ├── plugins/
-│   │   └── custom-plugin/
-│   │
-│   └── uploads/
-│
-└── README.md
-
+CONTAINER_NAME=your-project-name
+DATABASE_NAME=wordpress
+DATABASE_USER=wordpress
+DATABASE_PASSWORD=your_password
+DATABASE_ROOT_PASSWORD=your_root_password
 ```
 
----
+## Installation
 
-# 🐳 Docker Services
-
-## Nginx
-
-Responsible for:
-
-- Handling HTTP requests
-- Serving static files
-- Passing PHP requests to WordPress PHP-FPM
-
-Port:
-
-```
-8080
-```
-
----
-
-## WordPress
-
-Runs using:
-
-```
-wordpress:7.0.1-php8.2-fpm-alpine
-```
-
-Features:
-
-- PHP-FPM based WordPress
-- Custom themes support
-- Custom plugin development
-- Persistent application files
-
----
-
-## MySQL Database
-
-Stores:
-
-- WordPress settings
-- Users
-- Posts
-- Plugin data
-- Theme settings
-
----
-
-## phpMyAdmin
-
-Database administration interface.
-
-Access:
-
-```
-http://localhost:8081
-```
-
----
-
-# ⚙️ Installation
-
-## 1. Clone Repository
+**1. Clone the repository**
 
 ```bash
-https://github.com/thilinagamage001/dockerized-wordpress-platform.git
-
+git clone https://github.com/thilinagamage001/dockerized-wordpress-platform.git
 cd dockerized-wordpress-platform
 ```
 
----
+**2. Create your `.env` file**
 
-## 2. Create Environment File
+Create a `.env` file in the project root with the variables listed above.
 
-Copy:
-
-```bash
-cp .env.example .env
-```
-
-Update database credentials:
-
-```env
-DATABASE_NAME=wordpress
-DATABASE_USER=wordpress
-DATABASE_PASSWORD=password
-DATABASE_ROOT_PASSWORD=rootpassword
-```
-
----
-
-## 3. Start Containers
-
-Build and start:
+**3. Start the stack**
 
 ```bash
 docker compose up -d --build
 ```
 
-Check running containers:
+**4. Check running containers**
 
 ```bash
 docker ps
 ```
 
----
+**5. Access the application**
 
-## 4. Access Application
+- WordPress: [http://localhost:8080](http://localhost:8080)
+- phpMyAdmin: [http://localhost:8081](http://localhost:8081)
 
-WordPress:
-
-```
-http://localhost:8080
-```
-
-phpMyAdmin:
-
-```
-http://localhost:8081
-```
-
----
-
-# 🛠️ Development Workflow
-
-## Themes
-
-Custom themes are developed inside:
-
-```
-wp-content/themes/
-```
-
-Example:
-
-```
-wp-content/themes/my-theme
-```
-
-Open with VS Code:
+## Useful commands
 
 ```bash
-code wp-content/themes/my-theme
-```
-
----
-
-## Plugins
-
-Custom plugins are developed inside:
-
-```
-wp-content/plugins/
-```
-
----
-
-## Database
-
-Database data is stored using Docker volumes:
-
-```
-dbdata
-```
-
-This keeps data persistent after container recreation.
-
----
-
-# 🔐 Environment Security
-
-Sensitive data is not committed.
-
-The following files are ignored:
-
-```
-.env
-wp-content/uploads/
-```
-
-Use:
-
-```
-.env.example
-```
-
-for sharing required configuration.
-
----
-
-# 🔄 CI/CD Pipeline
-
-The project uses GitHub Actions to automate:
-
-## Continuous Integration
-
-On every push:
-
-```
-GitHub Push
-      |
-      |
-GitHub Actions
-      |
-      |
-Validate Docker Compose
-      |
-      |
-PHP Syntax Check
-```
-
----
-
-## Continuous Deployment (Planned)
-
-Future deployment workflow:
-
-```
-Developer
-    |
-    |
-GitHub
-    |
-    |
-GitHub Actions
-    |
-    |
-Docker Image / SSH Deployment
-    |
-    |
-Production Server
-
-```
-
----
-
-# 📝 Useful Docker Commands
-
-## Start services
-
-```bash
+# Start services
 docker compose up -d
-```
 
----
-
-## Stop services
-
-```bash
+# Stop services
 docker compose down
-```
 
----
-
-## View logs
-
-```bash
+# View logs
 docker compose logs -f
-```
 
----
-
-## Restart WordPress
-
-```bash
+# Restart WordPress
 docker compose restart wordpress
-```
 
----
-
-## Enter WordPress container
-
-```bash
+# Enter the WordPress container
 docker exec -it wordpress sh
 ```
 
----
+## Backup & restore
 
-# 📦 Backup Strategy
-
-## Database Backup
-
-Example:
+**Backup database**
 
 ```bash
-docker exec database \
-mysqldump -u root -p wordpress > backup.sql
+docker exec ${CONTAINER_NAME}-db mysqldump -u root -p wordpress > backup.sql
 ```
 
----
-
-## Restore Database
+**Restore database**
 
 ```bash
-mysql -u root -p wordpress < backup.sql
+docker exec -i ${CONTAINER_NAME}-db mysql -u root -p wordpress < backup.sql
 ```
 
----
 
-# 🚧 Future Improvements
+## Learning objectives
 
-- [ ] AWS EC2 deployment
-- [ ] HTTPS with Let's Encrypt
-- [ ] Automated backups
-- [ ] Terraform infrastructure
-- [ ] Ansible server configuration
-- [ ] Docker image registry
-- [ ] Kubernetes deployment
-- [ ] Prometheus monitoring
-- [ ] Grafana dashboards
-- [ ] Security scanning
+This project was built to practice:
 
----
+- Containerizing a WordPress application with Docker Compose
+- Managing multi-container environments on a shared internal network
+- Configuring Nginx as a reverse proxy with FastCGI to PHP-FPM
+- Managing persistent storage with named volumes and bind mounts
+- Environment-based configuration and secrets handling
+- Database healthchecks and service dependencies
 
-# 🎯 Learning Objectives
-
-This project demonstrates practical knowledge of:
-
-- Containerizing WordPress applications
-- Managing multi-container environments
-- Linux permissions
-- Reverse proxy configuration
-- Database persistence
-- Environment management
-- CI/CD fundamentals
-- Infrastructure automation
-
----
-
-# 👨‍💻 Author
+## Author
 
 **Thilina Gamage**
 
-GitHub:
-https://github.com//thilinagamage001
-
-LinkedIn:
-https://linkedin.com/in/thilinagamage001
+- GitHub: [thilinagamage001](https://github.com/thilinagamage001)
+- LinkedIn: [thilinagamage001](https://linkedin.com/in/thilinagamage001)
 
 ---
 
-⭐ If you find this project useful, feel free to star the repository.
+If you find this project useful, feel free to star the repository.
