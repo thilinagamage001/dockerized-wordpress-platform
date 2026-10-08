@@ -13,7 +13,8 @@ A production-style WordPress stack built with Docker Compose — running **Nginx
 
 ## Architecture
 
-<img width="967" height="966" alt="Docker WordPress" src="https://github.com/user-attachments/assets/4697ad4e-c89b-45b2-a98d-c33a38073706" />
+<img width="1376" height="768" alt="architecture-diagram" src="https://github.com/user-attachments/assets/84e7ade3-6d6c-4bec-88a0-edd5071dc11d" />
+
 
 ### Request & Service Flow
 
